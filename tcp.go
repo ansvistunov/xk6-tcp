@@ -3,7 +3,6 @@ package tcp
 import (
 	"net"
 	"time"
-
 	"go.k6.io/k6/js/modules"
 	"go.k6.io/k6/metrics"
 )
@@ -25,6 +24,13 @@ type (
 		tcp *TCP
 	}
 )
+
+
+type Socket struct {
+	 builtinMetrics *metrics.BuiltinMetrics
+}
+
+var socket = {metrics.BuiltinMetrics}
 
 var (
 	_ modules.Instance = &ModuleInstance{}
@@ -64,9 +70,12 @@ func (tcp *TCP) Write(conn net.Conn, data []byte) error {
 	}
 
 	metrics.PushIfNotDone(tcp.vu.Context(), tcp.vu.State().Samples, metrics.Sample{
-		Time:       time.Now(),
-		TimeSeries: metrics.TimeSeries{Metric: j.foos, Tags: tags},
-		Value:      arg,
+		TimeSeries: metrics.TimeSeries{
+			Metric: metrics.BuiltinMetrics.DataReceived,
+			Tags:   nil,
+		},
+		Time:     time.Now(),
+		Value:    float64(len(data)),
 	})
 	return nil
 }
