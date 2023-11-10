@@ -2,16 +2,51 @@ package tcp
 
 import (
 	"net"
+	"time"
 
 	"go.k6.io/k6/js/modules"
-
+	"go.k6.io/k6/metrics"
 )
 
 func init() {
 	modules.Register("k6/x/tcp", new(TCP))
 }
 
-type TCP struct{}
+type (
+	// RootModule is the global module instance that will create module
+	// instances for each VU.
+	RootModule struct{}
+
+	// ModuleInstance represents an instance of the JS module.
+	ModuleInstance struct {
+		// vu provides methods for accessing internal k6 objects for a VU
+		vu modules.VU
+		// comparator is the exported type
+		tcp *TCP
+	}
+)
+
+var (
+	_ modules.Instance = &ModuleInstance{}
+	_ modules.Module   = &RootModule{}
+)
+
+func (*RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
+	return &ModuleInstance{
+		vu:  vu,
+		tcp: &TCP{vu: vu},
+	}
+}
+
+type TCP struct {
+	vu modules.VU
+}
+
+func (mi *ModuleInstance) Exports() modules.Exports {
+	return modules.Exports{
+		Default: mi.tcp,
+	}
+}
 
 func (tcp *TCP) Connect(addr string) (net.Conn, error) {
 	conn, err := net.Dial("tcp", addr)
@@ -28,6 +63,11 @@ func (tcp *TCP) Write(conn net.Conn, data []byte) error {
 		return err
 	}
 
+	metrics.PushIfNotDone(tcp.vu.Context(), tcp.vu.State().Samples, metrics.Sample{
+		Time:       time.Now(),
+		TimeSeries: metrics.TimeSeries{Metric: j.foos, Tags: tags},
+		Value:      arg,
+	})
 	return nil
 }
 
